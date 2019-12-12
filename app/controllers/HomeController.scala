@@ -67,7 +67,7 @@ class HomeController @Inject()(cc: ControllerComponents)(implicit system: ActorS
         }
   }
 
-  def fileSinkUpload = Action(parse.multipartFormData(handleFilePartAsSink)) { request =>
+  def fileSinkUpload: Action[MultipartFormData[ByteString]] = Action(parse.multipartFormData(handleFilePartAsSink)) { request =>
     val file = request.body.files.head.ref
     Ok(file.decodeString("US-ASCII"))
   }

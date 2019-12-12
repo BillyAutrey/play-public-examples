@@ -80,15 +80,24 @@ class HomeControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       implicit val mat: Materializer = app.materializer
       implicit val ec: ExecutionContext = app.materializer.executionContext
 
-      val file = SingletonTemporaryFileCreator.create("tmp","txt")
-      val writeResult = Source.single(ByteString("testdata")).runWith(FileIO.toPath(file.path))
+      lazy val body =
+        """
+          |--boundary
+          |Content-Disposition: form-data; name="file"; filename="foo"
+          |Content-Type: text/plain
+          |
+          |testdata
+          |--boundary--
+          |""".stripMargin.linesIterator.mkString("\r\n")
 
-      val fileSeq = Seq(FilePart("key", "tmp.txt", None, file, JFiles.size(file.path)))
+      val file = Source.single(ByteString(body))
+
+      val fileSeq = Seq(FilePart("key", "tmp.txt", None, file, 8))
       val fileRequest = FakeRequest().withBody {
         MultipartFormData(Map.empty, fileSeq, Nil)
-      }
+      }.withHeaders(HeaderNames.CONTENT_TYPE -> "multipart/form-data; boundary=boundary")
 
-      val fileStreamResult = writeResult.flatMap( _ => controller.tempFileUpload().apply(fileRequest))
+      val fileStreamResult = controller.fileSinkUpload().apply(fileRequest).run(file)
       contentAsString(fileStreamResult) mustBe "testdata"
       status(fileStreamResult) mustBe OK
     }
